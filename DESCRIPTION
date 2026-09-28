@@ -1,0 +1,38 @@
+Package: VeraCrop
+Type: Package
+Title: Yield Gap Analysis Using Comparative Performance Analysis
+Version: 0.1.0
+Authors@R: c(
+    person("Abolfazl", "Derakhshan", email = "derakhshanabolfazl01@gmail.com", role = c("aut", "cph")),
+    person("Elham", "Elahifard", email = "e.elahifard@asnrukh.ac.ir", role = c("aut", "cre")),
+    person("Aghajan", "Bahadori", role = c("ctb")),
+    person("Shaban", "Zarei", role = c("ctb")),
+    person("Hossein", "Norouzi", role = c("ctb")))
+Description: Implements automated variable-type detection, preprocessing,
+    encoding, scaling, model diagnostics, variable selection, and yield gap
+    computation for agricultural comparative performance analysis (CPA).
+    The comparative performance analysis approach is described in de Bie
+    (2004) <doi:10.1016/j.scienta.2003.11.017>. For an overview of yield
+    gap assessment methodologies, see Kamkar et al. (2025)
+    <doi:10.1016/j.agsy.2025.104392>.
+License: MIT + file LICENSE
+Language: en-US
+Encoding: UTF-8
+LazyData: true
+Depends: R (>= 4.0.0)
+Imports: stats, graphics, grDevices, utils, ggplot2
+Suggests: lmtest, car, e1071, bit64, patchwork, writexl, relaimpo,
+        testthat (>= 3.0.0), knitr, rmarkdown, spelling
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+NeedsCompilation: no
+Author: Abolfazl Derakhshan [aut, cph],
+  Elham Elahifard [aut, cre],
+  Aghajan Bahadori [ctb],
+  Shaban Zarei [ctb],
+  Hossein Norouzi [ctb]
+Maintainer: Elham Elahifard <e.elahifard@asnrukh.ac.ir>
+Packaged: 2026-09-17 05:35:16 UTC; a.derakhshan
+Config/roxygen2/version: 8.1.0
+Repository: CRAN
+Date/Publication: 2026-09-28 07:50:07 UTC

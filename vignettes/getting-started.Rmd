@@ -1,0 +1,186 @@
+---
+title: "Getting Started with VeraCrop"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with VeraCrop}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 6,
+  fig.height = 4
+)
+```
+
+```{r setup}
+library(VeraCrop)
+```
+
+## Overview
+
+VeraCrop implements Comparative Performance Analysis (CPA) for yield gap
+estimation: it fits a regression model to field-level agronomic data,
+identifies which management/environmental variables significantly affect
+yield, and decomposes the gap between average and attainable yield into
+the contribution of each variable.
+
+This vignette walks through the full workflow using `wheat1`, a real
+200-field wheat trial dataset bundled with the package. See
+`?wheat1` for a full description of its columns, and
+`?wheat2` for a second, smaller and more heterogeneous example
+dataset used elsewhere in the package documentation to illustrate
+data-cleaning features such as `trim_whitespace()`.
+
+## 1. Load the example data
+
+```{r load-data}
+data(wheat1)
+str(wheat1)
+```
+
+## 2. Preprocess the data
+
+`prep_yield_gap()` handles variable-type detection, missing-value
+imputation, encoding of categorical variables, constant/near-zero-variance
+filtering, and scaling of continuous predictors - all in one call. The
+response variable (and any binary/dummy columns produced by encoding) are
+automatically protected from being standardized, since scaling a 0/1
+indicator has no meaningful interpretation.
+
+```{r preprocess}
+prep <- prep_yield_gap(
+  wheat1,
+  response_var = "Yield",
+  verbose = FALSE
+)
+
+str(prep$data)
+```
+
+Check that preprocessing produced a usable, well-formed dataset before
+moving on:
+
+```{r validate}
+val <- validate_preprocessing(prep, verbose = FALSE)
+val$valid
+```
+
+## 3. Fit a model and check regression assumptions
+
+```{r diagnostics}
+model <- lm(Yield ~ ., data = prep$data)
+summary(model)$r.squared
+
+diag <- check_assumptions(model, data = prep$data, plot = FALSE, verbose = FALSE)
+diag$data_ready
+diag$data_ready_reason
+```
+
+## 4. Run the full yield gap analysis
+
+`yield_gap_analysis()` performs stepwise variable selection, k-fold
+cross-validation, optimal-value estimation for each significant variable,
+min-max effect sizes, relative importance, and yield gap decomposition.
+
+Two variable-selection methods are available: `"ftest"` (the default - a
+fixed F-to-Enter/F-to-Remove or p-value threshold, similar to software
+such as SigmaPlot) and `"aic"` (stepwise selection minimizing AIC via
+`stats::step()`). They encode different criteria for what counts as a
+useful predictor and will often select a different number of variables -
+neither is universally "correct".
+
+```{r analysis}
+result <- yield_gap_analysis(prep$data, response = "Yield", verbose = FALSE)
+
+result$metrics
+result$yield_mean
+result$yield_opt
+result$yield_gap
+```
+
+The `cpa_table` shows, for each significant variable, its coefficient,
+average value, estimated optimal value, and share of the total yield gap:
+
+```{r cpa-table}
+result$cpa_table
+```
+
+### Field-level (per-observation) yield gap
+
+In addition to the overall yield gap above, VeraCrop also estimates the
+gap for each individual field, available in `result$predictions`:
+
+```{r field-level}
+head(result$predictions)
+```
+
+`save_field_level_excel()` exports a full per-field breakdown, including
+each variable's individual contribution to that field's gap.
+
+## 5. Visualize the results
+
+```{r plots, eval = requireNamespace("ggplot2", quietly = TRUE)}
+plot_contribution_shares(result)
+```
+
+```{r plots-more, eval = requireNamespace("ggplot2", quietly = TRUE)}
+plot_observed_vs_predicted(result)
+```
+
+All five plots can be generated together with `plot_all_graphs(result)`.
+
+## 6. Export results
+
+```{r export, eval = requireNamespace("writexl", quietly = TRUE)}
+tmp <- tempfile(fileext = ".xlsx")
+save_results_excel(result, output_path = tmp, verbose = FALSE)
+file.exists(tmp)
+```
+
+## A messier, real-world dataset
+
+`wheat2` (40 fields, 29 recorded variables) illustrates several
+data-quality and small-sample issues that `prep_yield_gap()`
+handles automatically:
+
+```{r messy-data}
+data(wheat2)
+
+# "Sirvan" and "Sirvan " (trailing space) are automatically merged
+length(unique(wheat2$Cultivar))
+trimmed <- trim_whitespace(wheat2, verbose = FALSE)
+length(unique(trimmed$Cultivar))
+```
+
+`Litracy_Level` (farmer education) is a genuinely ordinal variable stored
+as text. Without an explicit order, it is conservatively treated as
+nominal; supplying `ordinal_level_orders` encodes it correctly:
+
+```{r ordinal, eval = FALSE}
+prep_small <- prep_yield_gap(
+  wheat2,
+  response_var = "Yield",
+  ordinal_level_orders = list(
+    Litracy_Level = c("Elementary School", "Middle School", "Diploma",
+                       "Bachelor's Degree", "Master's Degree")
+  ),
+  verbose = FALSE
+)
+```
+
+## Next steps
+
+* See `?prep_yield_gap` for all preprocessing options (imputation
+  method, encoding thresholds, near-zero-variance / correlation filtering).
+* See `?check_assumptions` for the full set of regression diagnostics.
+* See `?yield_gap_analysis` for variable selection and cross-validation
+  options.
+* See `?wheat1`, `?wheat2`, and `?sugarcane1` for
+  details on the bundled example datasets - the latter also illustrates
+  a genuinely ordinal variable (`crop_type`) and a perfectly collinear
+  ("aliased") derived column (`total_urea_kg_ha`), both handled
+  gracefully by the package.
